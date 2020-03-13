@@ -1,10 +1,6 @@
-# COVID-19-Charts
+# COVID-19 Maps and Charts for United States
 
-Trending and Map charts for COVID-19.
+Forked by https://github.com/ohdarling/COVID-19-Charts
 
-Running site: https://COVID19.tk/
-
-![COVID19.tk](https://raw.githubusercontent.com/ohdarling/COVID-19-Charts/master/covid19.tk.png)
-
-Data source: https://github.com/BlankerL/DXY-COVID-19-Data
+Data source: https://coronavirus.1point3acres.com/en
 
