@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>COVID-19 Trends</title>
-    <meta name="description" content="COVID-19 新型冠状病毒肺炎增长趋势，包括按省份趋势图，按城市趋势图，按省份分布地图，按城市分布地图，以及按城市变化情况。COVID-19.tk provides multiple trending charts for coronavirus disease 2019 visualization, includes trending charts, cases confirmed in countries with map visualizaition, cases increasements of countries in bar and line charts." />
-    <meta name="keywords" content="ncov,肺炎,新冠病毒,ncp,新冠肺炎,新冠状病毒,肺炎趋势图,肺炎增长,肺炎分布,sars,肺炎分布地图,各国肺炎病例,肺炎确诊,肺炎疑似,肺炎时间线,新冠状病毒肺炎,covid-19,covid-19 trends,covid-19 charts,ncp charts,2019-ncov,coronavirus disease,covid-19 map,covid-19 visualization,covid-19 map" />
+    <title>COVID-19 Unitied State</title>
+    <meta name="description" content="forked from https://covid19.tk/, provides maps and charts for coronavirus disease 2019 visualization in the states" />
+    <meta name="keywords" content="ncov,covid-19,covid-19 trends,covid-19 charts,ncp charts,2019-ncov,coronavirus disease,covid-19 map,covid-19 visualization,covid-19 map" />
     <style>
       html, body { height: 100%; }
       #chart_container { height: 90% }
@@ -22,22 +22,21 @@
       @media only screen and (min-width: 2000px) {
         .trends-chart { width: 33% }
       }
+      footer {position: absolute; bottom: 0; height: 1rem; width: 100%;	text-align: right; padding-right: 0.2rem; font-size:xx-small; color:lightslategray}
+      .scrollable-menu {height: auto; max-height: 300px; overflow-x: hidden;
+}
     </style>
     <link href="assets/bootstrap.min.css" rel="stylesheet">
     <script src="assets/axios.min.js"></script>
     <script src="assets/echarts.min.js"></script>
-    <script>
-      if (location.host.toLowerCase() !== 'covid19.tk') {
-        location.href = 'https://covid19.tk/' + location.hash;
-      }
-    </script>
+
     <link rel="shortcut icon" href="assets/logo.png">
   </head>
   <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light mb-3">
-      <a class="navbar-brand" href="https://covid19.tk">
+      <a class="navbar-brand" href="https://covid19.qmshaophoto.com">
         <img src="assets/logo.png" width="30" height="30" class="d-inline-block align-center" alt="">
-        COVID19.tk
+        COVID-19@US
       </a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -46,56 +45,25 @@
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto" id="navbar">
           <li class="nav-item">
-            <a class="nav-link" href="#tab=summary">总体趋势</a>
+            <a class="nav-link" href="#tab=map">US Map</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="#tab=zerodays">新增概览</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#tab=trends">省市趋势</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#tab=map">省市地图</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#tab=cities-map">全部城市地图</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#tab=world-map">世界地图</a>
+            <a class="nav-link" href="#tab=county-map">All Counties</a>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#tab=world-trends" id="continentDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">各国趋势</a>
-            <div class="dropdown-menu" aria-labelledby="continentDropdown">
-              <a class="dropdown-item" href="#tab=world-trends">全部国家</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=亚洲">亚洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=欧洲">欧洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=大洋洲">大洋洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=北美洲">北美洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=南美洲">南美洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=非洲">非洲</a>
-              <a class="dropdown-item" href="#tab=world-trends&amp;continent=其他">其他</a>
+            <a class="nav-link dropdown-toggle" href="#tab=state-details" id="stateDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Select State</a>
+            <div id="select-state" class="dropdown-menu scrollable-menu" aria-labelledby="stateDropdown">
             </div>
           </li>
         </ul>
-        <form class="form-inline my-2 my-lg-0 mr-2">
-          <input id="searchField" class="form-control mr-sm-2" type="search" placeholder="国家或城市" aria-label="Search">
-          <button onclick="searchArea(); return false;" class="btn btn-outline-success my-2 my-sm-0">搜索</button>
-        </form>
+
         <ul class="navbar-nav">
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="langDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              ZH
-            </a>
-            <div class="dropdown-menu" aria-labelledby="langDropdown">
-              <a class="dropdown-item" href="javascript:setCurrentLang('zh')">中文</a>
-              <a class="dropdown-item" href="javascript:setCurrentLang('en')">English</a>
-            </div>
+
+          <li class="nav-item">
+            <a class="nav-link" href="https://github.com/qmshao/COVID-19-Charts">GitHub</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="https://github.com/ohdarling/2019-nCoV-Charts">GitHub</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="https://github.com/BlankerL/DXY-2019-nCoV-Data" target="_blank">数据来源</a>
+            <a class="nav-link" href="https://coronavirus.1point3acres.com/en" target="_blank">Data Srouce</a>
           </li>
         </ul>
       </div>
@@ -115,15 +83,16 @@
     <script src="app.js?t=3112"></script>
 
     <script src="assets/bootstrap.bundle.min.js"></script>
-
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-158038850-1"></script>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-106805084-1"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      gtag('config', 'UA-158038850-1');
+      gtag('config', 'UA-106805084-1');
     </script>
-
   </body>
+  
+  <footer>&copy; Copyright 2020 qmshaophoto</footer>
 </html>
