@@ -410,27 +410,34 @@ async function createMapChartConfig({
 
   let boundary = geoJSON.features.reduce((bound, feature) => getboundary(bound,feature.geometry.coordinates), [1000, -1000, 1000, -1000])
   let mapAspectRatio = (boundary[3] - boundary[2]) / (boundary[1] - boundary[0]);
-
+  let isSlimMap = mapAspectRatio>window.innerHeight*(isVertical?0.4:0.8)/window.innerWidth
 
   const hideBarChart = (mapName === 'us-counties');
   const isStateMap = (mapName === 'us-states');
   const isCounty = ['us-states', 'us-counties', 'world'].indexOf(mapName) === -1;
   const visualPieces = getVisualPieces(mapName);
+
+  let divider = 45;
+  let center = 20;
+  if (isStateMap && isVertical){
+    center0 = parseInt((window.innerWidth * mapAspectRatio * 0.4  + 75) / (window.innerHeight)*100) - 1;
+    divider0 = parseInt((window.innerWidth * mapAspectRatio * 0.8  + 75 + 30) / (window.innerHeight)*100);
+    console.log(divider0, center0);
+  }
+
   
-
-
   const barSeriesConfig = {
-    stack: '人数',
+    stack: 'count',
     type: 'bar',
     label: {
       position: 'inside',
       show: true,
       color: '#eee',
-      fontSize: (isVertical && isStateMap) ? 9 : null,
+      fontSize: (isVertical && isStateMap) ? 9-isStateMap*2 : null,
       formatter: ({
-        data
+        data, seriesName
       }) => {
-        return data[0] > 0 ? data[0] : '';
+        return (seriesName=='Confirmed Incr.'?'+':'') + (data[0] > 0 ? data[0] : '');
       }
     },
     barMaxWidth: 30,
@@ -472,7 +479,7 @@ async function createMapChartConfig({
       // },
       grid: hideBarChart ? [] : [{
         width: '100%',
-        top: isVertical ? '45%' : 10,
+        top: isVertical ? `${divider}%` : 10,
         bottom: isVertical ? '8%' : null,
         left: 10,
         containLabel: true
@@ -512,7 +519,7 @@ async function createMapChartConfig({
           pieces: visualPieces,
           left: 'auto',
           right: 30,
-          bottom: isVertical && !hideBarChart ? '56%' : 100,
+          bottom: isVertical&& !hideBarChart ? `${101-divider}%` : 100,
           seriesIndex: 0,
           orient: isVertical && !hideBarChart? 'horizontal' : 'vertical',
         },
@@ -532,14 +539,15 @@ async function createMapChartConfig({
           show: !hideBarChart,
           formatter: !isStateMap ? (para => (para.data) ? para.name.slice(0, -4) : '') : {},
           // formatter: !isStateMap ? para => para.name.slice(0,-4) : {},
-          fontSize: isCounty ? 9 - isVertical : 12,
+          fontSize: (isCounty || isVertical)? 9 - isVertical : 12,
         },
         // zoom: isCounty ? 0.9 : 1,
-        left: hideBarChart || isCounty || isVertical ? 'center' : '15%',
+        left: isCounty && !isVertical? null: (hideBarChart || isVertical ? 'center' : '15%'),
+        right: isCounty && !isVertical ? `${Math.max(100, window.innerWidth*0.1)}px` : null,
         // top: isVertical? 'auto':null,
         // bottom: isVertical? '60%':null,
-        layoutCenter: isVertical ? ['50%', hideBarChart? '40%':'20%'] : null, 
-        layoutSize: (mapAspectRatio>window.innerHeight*0.4/window.innerWidth? window.innerHeight * 0.4 : window.innerWidth) * 0.8,
+        layoutCenter: isVertical ? ['50%', hideBarChart? '40%': `${center}%`] : null, 
+        layoutSize: (isStateMap && isVertical)? window.innerWidth*0.8 : ((isSlimMap? window.innerHeight * 0.4 : window.innerWidth) * 0.8),
         tooltip: {
           formatter: ({
             name,
@@ -563,7 +571,11 @@ async function createMapChartConfig({
       }].concat((hideBarChart ? [] : [{
         name: getTextForKey('确诊'),
         color: '#c23531',
-      }].map(c => {
+      } ,
+        {
+        name: getTextForKey('新增确诊'),
+        color: '#d5564e',
+      },].map(c => {
         return Object.assign({}, barSeriesConfig, c);
       })))
     },
@@ -586,12 +598,16 @@ async function createMapChartConfig({
               increased: r.confirmedIncreased,
             };
           }),
-        }, ].concat(hideBarChart ? [] : {
-          data: d.records.map(r => {
-            let name = r.showName || r.name;
-            return [r['confirmedCount'], isStateMap ? name : name.slice(0, -4)];
-          })
-        }),
+        }, ].concat(hideBarChart ? [] : 
+          [ 'confirmedCount', 'confirmedIncreased'].map(k => {
+          return {
+            encode: {x:0+(k=='confirmedCount'), y:2, tooltip:0},
+            data: d.records.map(r => {
+              let name = r.showName || r.name;
+              let last = r['confirmedCount']-r['confirmedIncreased'];
+              return [ r[k],  last, isStateMap ? name : name.slice(0, -4) ];
+            })
+          }}))
       };
     })
   };
