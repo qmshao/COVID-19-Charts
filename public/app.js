@@ -2,19 +2,19 @@
 /* exported switchMapMetrics searchArea */
 
 let isVertical = window.innerWidth / window.innerHeight < 0.8;
-window.addEventListener("resize", function () {
+let resizeFunc = function () {
   const chart = echarts.init(document.getElementById('mapchart'));
   if (chart != null && chart != undefined) {
     let currVertical = window.innerWidth / window.innerHeight < 0.8;
-    if (currVertical == isVertical){
+    if (!currVertical && !isVertical){
       chart.resize();
     } else {
-      isVertical = currVertical;
       handleHashChanged();
     }
+    isVertical = currVertical;
   }
-
-});
+};
+window.addEventListener("resize", resizeFunc);
 
 
 let nameMap = {
@@ -399,6 +399,11 @@ async function createMapChartConfig({
     });
   });
 
+  const hideBarChart = (mapName === 'us-counties');
+  const isStateMap = (mapName === 'us-states');
+  const isCounty = ['us-states', 'us-counties', 'world'].indexOf(mapName) === -1;
+  const visualPieces = getVisualPieces(mapName);
+
   // get map aspec ratio
   let getboundary = (boundary, coord) => coord.reduce( (b,c) => 
      c[0].length?getboundary(b,c):[
@@ -408,24 +413,18 @@ async function createMapChartConfig({
     Math.max(b[3], c[1])
   ], boundary);
 
-  let boundary = geoJSON.features.reduce((bound, feature) => getboundary(bound,feature.geometry.coordinates), [1000, -1000, 1000, -1000])
-  let mapAspectRatio = (boundary[3] - boundary[2]) / (boundary[1] - boundary[0]);
+  let boundary = isStateMap?null:geoJSON.features.reduce((bound, feature) => getboundary(bound,feature.geometry.coordinates), [1000, -1000, 1000, -1000])
+  let mapAspectRatio = isStateMap? 0.43885284252467566: (boundary[3] - boundary[2]) / (boundary[1] - boundary[0]);
   let isSlimMap = mapAspectRatio>window.innerHeight*(isVertical?0.4:0.8)/window.innerWidth
-
-  const hideBarChart = (mapName === 'us-counties');
-  const isStateMap = (mapName === 'us-states');
-  const isCounty = ['us-states', 'us-counties', 'world'].indexOf(mapName) === -1;
-  const visualPieces = getVisualPieces(mapName);
 
   let divider = 45;
   let center = 20;
-  if (isStateMap && isVertical){
-    center0 = parseInt((window.innerWidth * mapAspectRatio * 0.4  + 75) / (window.innerHeight)*100) - 1;
-    divider0 = parseInt((window.innerWidth * mapAspectRatio * 0.8  + 75 + 30) / (window.innerHeight)*100);
-    console.log(divider0, center0);
+  if (isStateMap && isVertical ){
+    console.log(center)
+    center = parseInt((window.innerWidth * mapAspectRatio * 0.5  ) / (window.innerHeight - 75)*100) ;
+    divider = parseInt((window.innerWidth * mapAspectRatio * 1.0 + 30) / (window.innerHeight - 75)*100);
   }
 
-  
   const barSeriesConfig = {
     stack: 'count',
     type: 'bar',
@@ -437,7 +436,7 @@ async function createMapChartConfig({
       formatter: ({
         data, seriesName
       }) => {
-        return (seriesName=='Confirmed Incr.'?'+':'') + (data[0] > 0 ? data[0] : '');
+        return (data[0] > 0 ? (seriesName=='Confirmed Incr.'?'+':'') + data[0] : '');
       }
     },
     barMaxWidth: 30,
@@ -629,8 +628,8 @@ async function setupMapCharts(records, container, province = '', hideBarChart = 
 
 
   if (!province) {
-    chart.on('click', (params) => {
-      showMap(codeMap[params.name.slice(-2)]);
+    chart.on('click', ({name, componentIndex}) => {
+      showMap(componentIndex?name:codeMap[name.slice(-2)]);
     });
   }
 
@@ -642,7 +641,15 @@ async function prepareChartData(name, type = 'area') {
   showLoading();
 
   const dataList = await getData(type);
-
+  // Prepare summary data
+  if (Object.keys(summary).length ==0){
+    summary.US = {confirmed:0, increased:0};
+    dataList[dataList.length-1].records.forEach( r => {
+      summary.US.confirmed +=  r.confirmedCount;
+      summary.US.increased +=  r.confirmedIncreased;
+      summary[nameMap[r.provinceName]] = {confirmed: r.confirmedCount, increased: r.confirmedIncreased};
+    })
+  }
   allCharts.forEach(c => {
     c.clear();
     c.dispose();
@@ -676,6 +683,7 @@ async function prepareChartData(name, type = 'area') {
 }
 
 function updateHash(tab, state, city) {
+  updateNavtitle(state);
   const tabConfig = mobulesConfig[tab];
   let hash = '#tab=' + tab;
   Object.values(allTabs).forEach(t => {
@@ -734,6 +742,15 @@ async function showWorldMap() {
 }
 
 
+// get confimred case summary
+let summary = {}
+let updateNavtitle = function(name){
+  let navtitle = document.getElementById('navtitle');
+  let code = name?nameMap[name]:'US';
+  let confirmedStr = summary[code].confirmed.toString().padStart(5,'0');
+  let increasedStr = summary[code].increased.toString().padStart(3,'0')
+  navtitle.innerHTML = `<img src="assets/logo.png" width="30" height="30" class="d-inline-block align-center" alt="">COVID-19@${code}<div style="display:inline;color: red">&nbsp${confirmedStr}(+${increasedStr})</div>`
+}
 
 
 
