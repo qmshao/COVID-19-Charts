@@ -8,7 +8,7 @@ let resizeFunc = function () {
     let currVertical = window.innerWidth / window.innerHeight < 0.8;
     if (!currVertical && !isVertical){
       chart.resize();
-    } else {
+    } else if (currVertical != isVertical){
       handleHashChanged();
     }
     isVertical = currVertical;
@@ -16,7 +16,7 @@ let resizeFunc = function () {
 };
 window.addEventListener("resize", resizeFunc);
 
-
+let colorSet = ['#c23531','#2f4554', '#61a0a8', '#d48265', '#91c7ae','#749f83',  '#ca8622', '#bda29a','#6e7074', '#546570', '#c4ccd3'];
 let nameMap = {
   Alabama: "AL",
   Alaska: "AK",
@@ -255,38 +255,38 @@ function getVisualPieces(type) {
       color: 'rgb(252,239,218)'
     },
   ] : type === 'us-states' ? [{
-      min: 1000,
-      label: '>1000',
+      min: 2000,
+      label: '>2k',
       color: 'rgb(143,31,25)'
     },
     {
-      min: 500,
-      max: 999,
-      label: '500-999',
+      min: 1000,
+      max: 1999,
+      label: '1k-2k',
       color: 'rgb(185,43,35)'
     },
     {
-      min: 100,
-      max: 499,
-      label: '100-499',
+      min: 300,
+      max: 999,
+      label: '300-999',
       color: 'rgb(213,86,78)'
     },
     {
-      min: 50,
-      max: 100,
-      label: '50-99',
+      min: 100,
+      max: 299,
+      label: '100-299',
       color: 'rgb(239,140,108)'
     },
     {
-      min: 10,
-      max: 49,
-      label: '10-49',
+      min: 30,
+      max: 99,
+      label: '30-99',
       color: 'rgb(248,211,166)'
     },
     {
       min: 1,
-      max: 9,
-      label: '1-9',
+      max: 29,
+      label: '1-29',
       color: 'rgb(252,239,218)'
     },
   ] : [{
@@ -403,7 +403,10 @@ async function createMapChartConfig({
   const isStateMap = (mapName === 'us-states');
   const isCounty = ['us-states', 'us-counties', 'world'].indexOf(mapName) === -1;
   const visualPieces = getVisualPieces(mapName);
-
+  const showTrend = isVertical && !hideBarChart;
+  let dates = data.map(d => d.day);
+  let trend = {'confirmed': data.map(d => d.confirmedCount), 'increased': data.map(d => d.confirmedIncreased)};
+  let dateLen = dates.length;
   // get map aspec ratio
   let getboundary = (boundary, coord) => coord.reduce( (b,c) => 
      c[0].length?getboundary(b,c):[
@@ -420,7 +423,6 @@ async function createMapChartConfig({
   let divider = 45;
   let center = 20;
   if (isStateMap && isVertical ){
-    console.log(center)
     center = parseInt((window.innerWidth * mapAspectRatio * 0.5  ) / (window.innerHeight - 75)*100) ;
     divider = parseInt((window.innerWidth * mapAspectRatio * 1.0 + 30) / (window.innerHeight - 75)*100);
   }
@@ -482,7 +484,14 @@ async function createMapChartConfig({
         bottom: isVertical ? '8%' : null,
         left: 10,
         containLabel: true
-      }],
+      }].concat (!showTrend? [] :[{
+        // width: '50%',
+        top: isVertical ? `${divider}%` : 10,
+        bottom: isVertical ? '8%' : null,
+        left: 10,
+        show: false,
+        containLabel: true,
+      }]),
       xAxis: hideBarChart ? [] : [{
         type: 'value',
         axisLine: {
@@ -498,7 +507,11 @@ async function createMapChartConfig({
           show: false,
         },
         max: data.length ? data[data.length - 1].records.reduce((acc, cur) => Math.max(acc, cur.confirmedCount), 0) * 1.05 : 0,
-      }],
+      }].concat (!showTrend? [] :[{
+        type: 'category',
+        data: [...dates, ''],
+        show: false,
+      }]),
       yAxis: hideBarChart ? [] : [{
         type: 'category',
         axisLabel: {
@@ -512,7 +525,16 @@ async function createMapChartConfig({
         axisLine: {
           show: false,
         },
-      }],
+      }].concat (!showTrend? [] :[{
+        type: 'value',
+        // axisLine: {show:false, lineStyle: {color:'grey'}},
+        // axisTick : {show: false},
+        // axisLabel: {align: 'left', fontSize: 9, formatter: (value, index) => `${parseInt(value/1000)}k`},
+        // offset: -10,
+        girdIndex: 1,
+        show: false,
+        max: trend.confirmed[dateLen-1]* 1.2,
+      }]),
       visualMap: [{
           type: 'piecewise',
           pieces: visualPieces,
@@ -573,7 +595,7 @@ async function createMapChartConfig({
       } ,
         {
         name: getTextForKey('新增确诊'),
-        color: '#d5564e',
+        color: '#ef8b6c',
       },].map(c => {
         return Object.assign({}, barSeriesConfig, c);
       })))
@@ -606,7 +628,51 @@ async function createMapChartConfig({
               let last = r['confirmedCount']-r['confirmedIncreased'];
               return [ r[k],  last, isStateMap ? name : name.slice(0, -4) ];
             })
-          }}))
+          }})).concat(!showTrend? []:['confirmed', 'increased'].map( (k) => {
+            return {
+              type: 'line',
+              name: k==='confirmed'?'Confimred':'Increased' ,
+              symbol:  'circle',
+              symbolSize: 6,
+              // lineStyle: {color: '#b03a5b'},
+              // lineStyle: {width: 1, color: '#b03a5b'},
+              // color: 'rgb(255,0,0,0,0.1)',
+              color: colorSet[k=='confirmed'?3:8], //#b92b23af',
+              xAxisIndex : 1,
+              yAxisIndex : 1,
+              
+
+              // areaStyle: {},
+              // label: {show:true,position:'inside'},
+              markPoint: { // markLine is in the same way.
+                name: k==='confirmed'?'Confimred by Last Update':'Increased  by Last Update' ,
+                label: {show: true, formatter: (para)=> para.data[0]},
+                tooltip: `${k==='confirmed'?'Confimred by Last Update':'Increased  by Last Update' }<br />${trend[k][dateLen-1]}`,
+                symbolSize: 10,
+                symbol: 'circle',
+                // symbolOffset: [0,'-50%'],
+                data: [{
+                    coord: [d.day, trend[k][dates.indexOf(d.day)]], // The number 5 represents xAxis.data[5], that is, '33'.
+                    // coord: ['5', 33.4] // The string '5' represents the '5' in xAxis.data.
+                }]
+              },
+              markLine:{
+                type: 'dashed',
+                silent: true,
+                label: {offset:[10,10], position:'middle'},
+                data: [
+                  [{
+                      name: k=='confirmed'?'Confimred':'Increased',
+                      coord: [dates[dates.length-2], trend[k][dates.length-2]]
+                  },
+                  {
+                      coord: [dates[dates.length-1], trend[k][dates.length-1]]
+                  }]
+                ],
+              },
+              data: trend[k].slice(0,-1),
+            }
+          }))
       };
     })
   };
@@ -625,11 +691,11 @@ async function setupMapCharts(records, container, province = '', hideBarChart = 
   const chart = echarts.init(document.getElementById('mapchart'));
   chart.setOption(cfg);
 
-
-
   if (!province) {
-    chart.on('click', ({name, componentIndex}) => {
-      showMap(componentIndex?name:codeMap[name.slice(-2)]);
+    chart.on('click', (para) => {
+      let {name, componentType, componentIndex} = para;
+      if ( !(["timeline", "markPoint"].includes(componentType)) && componentIndex<3)
+        showMap(componentIndex?name:codeMap[name.slice(-2)]);
     });
   }
 
@@ -667,9 +733,12 @@ async function prepareChartData(name, type = 'area') {
       records = dataList
         .filter(d => d.records.filter(p => p.name == name).length)
         .map(d => {
+          let stateData = d.records.filter(p => p.name == name)[0];
           return {
             day: d.day,
-            records: d.records.filter(p => p.name == name)[0].cityList,
+            confirmedCount : stateData.confirmedCount,
+            confirmedIncreased : stateData.confirmedIncreased,
+            records: stateData.cityList,
           };
         });
 
@@ -748,8 +817,8 @@ let updateNavtitle = function(name){
   let navtitle = document.getElementById('navtitle');
   let code = name?nameMap[name]:'US';
   let confirmedStr = summary[code].confirmed.toString().padStart(5,'0');
-  let increasedStr = summary[code].increased.toString().padStart(3,'0')
-  navtitle.innerHTML = `<img src="assets/logo.png" width="30" height="30" class="d-inline-block align-center" alt="">COVID-19@${code}<div style="display:inline;color: red">&nbsp${confirmedStr}(+${increasedStr})</div>`
+  let increasedStr = summary[code].increased.toString().padStart(4,'0')
+  navtitle.innerHTML = `<img src="assets/logo.png" width="30" height="30" class="d-inline-block align-center" alt="">COVID-19@${code}<div style="display:inline;color: red;font-size:small">&nbsp${confirmedStr}(+${increasedStr})</div>`
 }
 
 
@@ -802,6 +871,17 @@ const updatemenu = function(){
   let dropdown = document.getElementById('select-state');
   dropdown.innerHTML = Object.values(codeMap).filter(state => !(['Alaska', 'Hawaii', 'Puerto Rico'].includes(state)))
     .reduce((acc, state) => acc + `<a class="dropdown-item" href="#tab=select-state&amp;state=${state}">${state}</a>`, '');
+
+  // Feedback
+  $('#feedbackModal').on('shown.bs.modal', function () {
+    $('#feedbackPath')[0].value = window.location.href;
+  })
+  $('#feedbackSubmit').click(function() {
+    $('#feedbackModal').modal('hide');
+    $("#feedbackSuccess").fadeTo(2000, 500).slideUp(500, function() {
+      $("#feedbackSuccess").slideUp(500);
+    });
+ });
 
 }
 
